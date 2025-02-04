@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isikukoodi kontroll</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        input, button {
+            font-size: 16px;
+            padding: 10px;
+            margin: 10px;
+        }
+        #ticket_btn {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Isikukoodi kontroll</h1>
+    <input type="text" id="personal_id" placeholder="Sisesta isikukood">
+    <button onclick="checkID()">Kontrolli</button>
+    <p id="result"></p>
+    <button onclick="issueTicket()" id="ticket_btn">Väljasta pilet</button>
+
+    <script>
+        function checkID() {
+            let personal_id = document.getElementById("personal_id").value;
+            fetch("/check", {
+                method: "POST",
+                body: new URLSearchParams({ personal_id }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText = data.result;
+                let ticketBtn = document.getElementById("ticket_btn");
+
+                if (data.can_issue_ticket) {
+                    ticketBtn.style.display = "block";
+                } else {
+                    ticketBtn.style.display = "none";
+                }
+            });
+        }
+
+        function issueTicket() {
+            let personal_id = document.getElementById("personal_id").value;
+            fetch("/issue_ticket", {
+                method: "POST",
+                body: new URLSearchParams({ personal_id }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText = data.result;
+                document.getElementById("ticket_btn").style.display = "none";
+            });
+        }
+    </script>
+</body>
+</html>
