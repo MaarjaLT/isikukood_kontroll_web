@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 services:
   - type: web
     name: isikukood-kontroll
@@ -9,15 +8,3 @@ services:
     envVars:
       - key: PORT
         value: 10000
-=======
-services:
-  - type: web
-    name: isikukood-kontroll
-    runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
-    plan: free
-    envVars:
-      - key: PORT
-        value: 10000
->>>>>>> ddfd2d629181ca6caccd97ac78680ed06343a101
