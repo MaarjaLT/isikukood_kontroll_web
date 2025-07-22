@@ -1,66 +1,80 @@
 <!DOCTYPE html>
 <html lang="et">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Isikukoodi kontroll</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 50px;
-        }
-        input, button {
-            font-size: 16px;
-            padding: 10px;
-            margin: 10px;
-        }
-        #ticket_btn {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Isikukoodi kontroll</title>
+
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .container {
+      max-width: 480px;
+      margin-top: 100px;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    #ticket_btn {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-    <h1>Isikukoodi kontroll</h1>
-    <input type="text" id="personal_id" placeholder="Sisesta isikukood">
-    <button onclick="checkID()">Kontrolli</button>
-    <p id="result"></p>
-    <button onclick="issueTicket()" id="ticket_btn">Väljasta pilet</button>
 
-    <script>
-        function checkID() {
-            let personal_id = document.getElementById("personal_id").value;
-            fetch("/check", {
-                method: "POST",
-                body: new URLSearchParams({ personal_id }),
-                headers: { "Content-Type": "application/x-www-form-urlencoded" }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("result").innerText = data.result;
-                let ticketBtn = document.getElementById("ticket_btn");
+  <div class="container text-center">
+    <h2 class="mb-4">🎟️ Isikukoodi kontroll</h2>
 
-                if (data.can_issue_ticket) {
-                    ticketBtn.style.display = "block";
-                } else {
-                    ticketBtn.style.display = "none";
-                }
-            });
-        }
+    <div class="mb-3">
+      <input type="text" id="personal_id" class="form-control" placeholder="Sisesta isikukood">
+    </div>
 
-        function issueTicket() {
-            let personal_id = document.getElementById("personal_id").value;
-            fetch("/issue_ticket", {
-                method: "POST",
-                body: new URLSearchParams({ personal_id }),
-                headers: { "Content-Type": "application/x-www-form-urlencoded" }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("result").innerText = data.result;
-                document.getElementById("ticket_btn").style.display = "none";
-            });
-        }
-    </script>
+    <div class="d-grid gap-2">
+      <button class="btn btn-primary" onclick="checkID()">Kontrolli</button>
+      <button class="btn btn-success" id="ticket_btn" onclick="issueTicket()">Väljasta pilet</button>
+    </div>
+
+    <p class="mt-3 fw-semibold" id="result"></p>
+  </div>
+
+  <!-- Bootstrap JS (vajalik mobiilimenüüdeks jne) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    function checkID() {
+      const personal_id = document.getElementById("personal_id").value.trim();
+      fetch("/check", {
+        method: "POST",
+        body: new URLSearchParams({ personal_id }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("result").innerText = data.result;
+        const ticketBtn = document.getElementById("ticket_btn");
+        ticketBtn.style.display = data.result === "Tasuta pilet!" ? "block" : "none";
+      });
+    }
+
+    function issueTicket() {
+      const personal_id = document.getElementById("personal_id").value.trim();
+      fetch("/issue_ticket", {
+        method: "POST",
+        body: new URLSearchParams({ personal_id }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("result").innerText = data.result;
+        document.getElementById("ticket_btn").style.display = "none";
+      });
+    }
+  </script>
+
 </body>
 </html>
