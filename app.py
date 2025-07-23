@@ -63,11 +63,11 @@ def create_user():
         confirm = request.form['confirm_password']
 
         if password != confirm:
-            flash("Paroolid ei kattu!", "danger")
+            flask("Paroolid ei kattu!", "danger")
             return render_template("create_user.html")
 
         if User.query.filter_by(username=username).first():
-            flash("⚠️ Kasutajanimi on juba olemas!", "warning")
+            flask("⚠️ Kasutajanimi on juba olemas!", "warning")
             return render_template("create_user.html")
 
         hashed_pw = generate_password_hash(password)
