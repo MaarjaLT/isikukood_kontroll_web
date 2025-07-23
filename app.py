@@ -64,6 +64,7 @@ def logout():
 def create_user():
     if not current_user.is_admin:
         return "Ligipääs keelatud", 403
+    return render_template("admin.html")
 
     if request.method == 'POST':
         username = request.form['username']
@@ -166,16 +167,6 @@ def check():
                 result = "Ei ole elanik."
                 can_issue = False
 	
-		if age >= 14 and personal_id not in andmekoodid:
-    		result = "Pilet maksab"
-   		 can_issue = False
-   		 can_buy = True
-return jsonify({
-    "result": result,
-    "can_issue_ticket": can_issue,
-    "can_buy_ticket": can_buy
-})
-
 
                 # ✅ Salvesta puuduja
                 try:
@@ -196,6 +187,17 @@ return jsonify({
                     return jsonify({"result": f"Puuduja salvestamisel viga: {str(e)}", "can_issue_ticket": False})
         except Exception as e:
             return jsonify({"result": f"Vanuse arvutamine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+
+                # ✅ Pileti väljastamine
+		if age >= 14 and personal_id not in andmekoodid:
+    		result = "Pilet maksab"
+   		 can_issue = False
+   		 can_buy = True
+return jsonify({
+    "result": result,
+    "can_issue_ticket": can_issue,
+    "can_buy_ticket": can_buy
+})
 
     # ✅ Salvestame logi
     try:
