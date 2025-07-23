@@ -8,6 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, QueryLog
 from datetime import datetime
 import pandas as pd  # ← lisa see
+from openpyxl import load_workbook
+
 import os
 
 app = Flask(__name__)
@@ -108,25 +110,77 @@ def index():
 @login_required
 def check():
     personal_id = request.form.get("personal_id")
+    timestamp = datetime.utcnow()
 
     if not personal_id or len(personal_id) < 7:
-        result = "Vigane isikukood"
+        return jsonify({"result": "Vigane isikukood", "can_issue_ticket": False})
+
+    # 1. Kontrollime kas isikukood on juba logis (andmed.xlsx)
+    log_path = 'andmed.xlsx'
+    already_logged = False
+    if os.path.exists(log_path):
+        try:
+            df_log = pd.read_excel(log_path)
+            if personal_id in df_log['isikukood'].astype(str).values:
+                already_logged = True
+        except Exception as e:
+            return jsonify({"result": f"Logi lugemisel viga: {str(e)}", "can_issue_ticket": False})
+
+    # 2. Kui juba logis, ära väljasta uuesti
+    if already_logged:
+        result = "Pilet on juba väljastatud!"
         can_issue = False
-    elif personal_id.startswith("6") or personal_id.startswith("5"):
+    # 3. Kui algab 5/6 ja pole logis – võimalus piletit väljastada
+    elif personal_id.startswith(("5", "6")):
         result = "Tasuta pilet!"
         can_issue = True
-    elif personal_id in df['isikukood'].astype(str).values:
-        result = "Tasuta pilet!"
-        can_issue = True
+        # Logi salvestamine
+        try:
+            save_row = {
+                "isikukood": personal_id,
+                "kasutaja": current_user.username,
+                "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                "tulemus": result
+            }
+            if os.path.exists(log_path):
+                df_log = pd.read_excel(log_path)
+                df_log = pd.concat([df_log, pd.DataFrame([save_row])], ignore_index=True)
+            else:
+                df_log = pd.DataFrame([save_row])
+            df_log.to_excel(log_path, index=False)
+        except Exception as e:
+            return jsonify({"result": f"Logi salvestamisel viga: {str(e)}", "can_issue_ticket": False})
+
+    # 4. Kui algab 5/6 aga pole logis ega ole lubatud → lisa puuduja.xlsx
+    elif personal_id.startswith(("5", "6")):
+        result = "Puudub nimekirjas"
+        can_issue = False
+        try:
+            puudu_row = {
+                "isikukood": personal_id,
+                "kasutaja": current_user.username,
+                "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            missing_path = 'puuduja.xlsx'
+            if os.path.exists(missing_path):
+                df_miss = pd.read_excel(missing_path)
+                df_miss = pd.concat([df_miss, pd.DataFrame([puudu_row])], ignore_index=True)
+            else:
+                df_miss = pd.DataFrame([puudu_row])
+            df_miss.to_excel(missing_path, index=False)
+        except Exception as e:
+            return jsonify({"result": f"Puuduja salvestamisel viga: {str(e)}", "can_issue_ticket": False})
     else:
         result = "Ei ole elanik."
         can_issue = False
 
-    log = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
-    db.session.add(log)
+    # Salvesta andmebaasi logi
+    log_entry = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
+    db.session.add(log_entry)
     db.session.commit()
 
     return jsonify({"result": result, "can_issue_ticket": can_issue})
+
 
 @app.route("/debug-users")
 def debug_users():
