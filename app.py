@@ -8,7 +8,11 @@ app = Flask(__name__)
 app.secret_key = 'salajane_voti'
 
 # ✔️ Ühendus PostgreSQL andmebaasiga Renderist
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+# Loeme keskkonnast ja asendame vajadusel URL-i alguse
+database_url = os.getenv('DATABASE_URL')
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
