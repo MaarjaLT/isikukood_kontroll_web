@@ -108,9 +108,12 @@ def index():
 @login_required
 def check():
     personal_id = request.form.get("personal_id")
+
     if not personal_id or len(personal_id) < 7:
         result = "Vigane isikukood"
     elif personal_id.startswith("6") or personal_id.startswith("5"):
+        result = "Tasuta pilet!"
+    elif personal_id in df['isikukood'].astype(str).values:
         result = "Tasuta pilet!"
     else:
         result = "Ei ole elanik."
