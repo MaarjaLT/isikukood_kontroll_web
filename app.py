@@ -107,151 +107,110 @@ def index():
     return render_template("index.html")
 
 # ✔️ Isikukoodi kontroll
+import pandas as pd  # Lisa impordi algusesse kui veel pole
+
 @app.route('/check', methods=['POST'])
 @login_required
 def check():
     personal_id = request.form.get("personal_id")
     timestamp = datetime.utcnow()
-    result = "Tundmatu viga"
-    can_issue = False
 
     if not personal_id or len(personal_id) < 7:
-        return jsonify({"result": "Vigane isikukood", "can_issue_ticket": False})
+        return jsonify({"result": "Vigane isikukood", "can_issue_ticket": False, "can_sell_ticket": False})
 
-    # ✅ Kontrolli, kas juba on väljastatud
-    log_path = "logi.xlsx"
-    if os.path.exists(log_path):
-        try:
-            df_log = pd.read_excel(log_path)
-            if not df_log.empty and personal_id in df_log[df_log["tulemus"] == "Tasuta pilet!"]["isikukood"].astype(str).values:
-                return jsonify({"result": "Pilet juba väljastatud!", "can_issue_ticket": False})
-        except Exception as e:
-            return jsonify({"result": f"Logi lugemise viga: {str(e)}", "can_issue_ticket": False})
-
-    # ✅ Kontroll nimekirjas
     try:
-        andmed_df = pd.read_excel('andmed.xlsx')
-        andmekoodid = andmed_df['isikukood'].astype(str).values
+        df = pd.read_excel('andmed.xlsx')
+        is_in_list = personal_id in df['isikukood'].astype(str).values
     except Exception as e:
-        return jsonify({"result": f"Andmete faili lugemine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+        return jsonify({"result": f"Exceli lugemisel viga: {str(e)}", "can_issue_ticket": False, "can_sell_ticket": False})
 
-    if personal_id in andmekoodid:
+    if is_in_list:
         result = "Tasuta pilet!"
         can_issue = True
-
+        can_sell = False
     else:
-        # ✅ Arvuta vanus seisuga 01.08.2025
+        # Arvuta vanus
         try:
-            yy = int(personal_id[1:3])
-            mm = int(personal_id[3:5])
-            dd = int(personal_id[5:7])
-            century_code = personal_id[0]
-
-            if century_code in ['1', '2']:
-                year = 1800 + yy
-            elif century_code in ['3', '4']:
-                year = 1900 + yy
-            elif century_code in ['5', '6']:
-                year = 2000 + yy
-            else:
-                return jsonify({"result": "Tundmatu sajandikood", "can_issue_ticket": False})
-
-            birth_date = datetime(year, mm, dd)
-            ref_date = datetime(2025, 8, 1)
-            age = (ref_date - birth_date).days // 365
-
-            if age < 14:
-                result = "Tasuta pilet!"
-                can_issue = True
-            else:
-                result = "Ei ole elanik."
-                can_issue = False
-	
-
-                # ✅ Salvesta puuduja
-                try:
-                    puuduja_path = "puuduja.xlsx"
-                    puudu_row = {
-                        "isikukood": personal_id,
-                        "kasutaja": current_user.username,
-                        "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                        "põhjus": "≥14 ja puudub nimekirjast"
-                    }
-                    if os.path.exists(puuduja_path):
-                        puudu_df = pd.read_excel(puuduja_path)
-                        puudu_df = pd.concat([puudu_df, pd.DataFrame([puudu_row])], ignore_index=True)
-                    else:
-                        puudu_df = pd.DataFrame([puudu_row])
-                    puudu_df.to_excel(puuduja_path, index=False)
-                except Exception as e:
-                    return jsonify({"result": f"Puuduja salvestamisel viga: {str(e)}", "can_issue_ticket": False})
+            year_prefix = {"1": "18", "2": "18", "3": "19", "4": "19", "5": "20", "6": "20"}
+            century = year_prefix.get(personal_id[0], "20")
+            birth_year = int(century + personal_id[1:3])
+            birth_month = int(personal_id[3:5])
+            birth_day = int(personal_id[5:7])
+            birthdate = datetime(birth_year, birth_month, birth_day)
+            as_of = datetime(2025, 8, 1)
+            age = (as_of - birthdate).days // 365
         except Exception as e:
-            return jsonify({"result": f"Vanuse arvutamine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+            return jsonify({"result": f"Viga sünnikuupäeva arvutamisel: {str(e)}", "can_issue_ticket": False, "can_sell_ticket": False})
 
-                # ✅ Pileti väljastamine
-		if age >= 14 and personal_id not in andmekoodid:
-    		result = "Pilet maksab"
-   		 can_issue = False
-   		 can_buy = True
-return jsonify({
-    "result": result,
-    "can_issue_ticket": can_issue,
-    "can_buy_ticket": can_buy
-})
-
-    # ✅ Salvestame logi
-    try:
-        save_row = {
-            "isikukood": personal_id,
-            "kasutaja": current_user.username,
-            "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            "tulemus": result
-        }
-        if os.path.exists(log_path):
-            df_log = pd.read_excel(log_path)
-            df_log = pd.concat([df_log, pd.DataFrame([save_row])], ignore_index=True)
+        if age < 14:
+            result = "Tasuta pilet!"
+            can_issue = True
+            can_sell = False
         else:
-            df_log = pd.DataFrame([save_row])
-        df_log.to_excel(log_path, index=False)
-    except Exception as e:
-        return jsonify({"result": f"Logi salvestamine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+            result = "Pileti müük"
+            can_issue = False
+            can_sell = True
 
-    # ✅ Andmebaasi logi
-    db_log = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
-    db.session.add(db_log)
-    db.session.commit()
+    return jsonify({
+        "result": result,
+        "can_issue_ticket": can_issue,
+        "can_sell_ticket": can_sell
+    })
 
-    return jsonify({"result": result, "can_issue_ticket": can_issue})
-
-# ✔️ Piletite ostmine
-@app.route("/buy_ticket", methods=["POST"])
+@app.route('/issue_ticket', methods=['POST'])
 @login_required
-def buy_ticket():
+def issue_ticket():
+    personal_id = request.form.get("personal_id")
+    timestamp = datetime.utcnow()
+
+    row = {
+        "isikukood": personal_id,
+        "kasutaja": current_user.username,
+        "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        "tulemus": "Tasuta pilet"
+    }
+
+    path = 'andmed.xlsx'
     try:
-        isikukood = request.form.get("personal_id")
-        kogus = int(request.form.get("quantity"))
-        hind = 15 * kogus
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-
-        ost_row = {
-            "isikukood": isikukood,
-            "kogus": kogus,
-            "hind (€)": hind,
-            "kasutaja": current_user.username,
-            "aeg": timestamp
-        }
-
-        ostud_path = "ostud.xlsx"
-        if os.path.exists(ostud_path):
-            df = pd.read_excel(ostud_path)
-            df = pd.concat([df, pd.DataFrame([ost_row])], ignore_index=True)
+        if os.path.exists(path):
+            df = pd.read_excel(path)
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
         else:
-            df = pd.DataFrame([ost_row])
-        df.to_excel(ostud_path, index=False)
-
-        return jsonify({"result": f"{kogus} pilet(it) ostetud, hind kokku {hind}€"})
+            df = pd.DataFrame([row])
+        df.to_excel(path, index=False)
     except Exception as e:
-        return jsonify({"result": f"Ostu salvestamine ebaõnnestus: {str(e)}"})
+        return jsonify({"result": f"Salvestamine ebaõnnestus: {str(e)}"})
+
+    return jsonify({"result": "Pilet väljastatud!"})
+
+@app.route('/sell_ticket', methods=['POST'])
+@login_required
+def sell_ticket():
+    personal_id = request.form.get("personal_id")
+    quantity = int(request.form.get("quantity", 1))
+    timestamp = datetime.utcnow()
+    total_price = quantity * 15  # €15 per ticket
+
+    row = {
+        "isikukood": personal_id,
+        "kogus": quantity,
+        "hind (€)": total_price,
+        "kasutaja": current_user.username,
+        "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    path = 'müük.xlsx'
+    try:
+        if os.path.exists(path):
+            df = pd.read_excel(path)
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([row])
+        df.to_excel(path, index=False)
+    except Exception as e:
+        return jsonify({"result": f"Müügi salvestus ebaõnnestus: {str(e)}"})
+
+    return jsonify({"result": f"{quantity} pilet(it) müüdud kokku {total_price} € eest"})
 
 
 @app.route('/stats')
