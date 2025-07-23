@@ -60,15 +60,23 @@ def create_user():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        confirm = request.form['confirm_password']
+
+        if password != confirm:
+            flash("Paroolid ei kattu!", "danger")
+            return render_template("create_user.html")
 
         if User.query.filter_by(username=username).first():
-            return render_template("create_user.html", error="Kasutajanimi juba olemas.")
+            flash("⚠️ Kasutajanimi on juba olemas!", "warning")
+            return render_template("create_user.html")
 
         hashed_pw = generate_password_hash(password)
         new_user = User(username=username, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for('index'))
+
+        flash(f"Kasutaja '{username}' loodud!", "success")
+        return redirect(url_for('create_user'))
 
     return render_template("create_user.html")
 
