@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, QueryLog
 from datetime import datetime
 import os
+from flask import flash
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'devkey')
@@ -63,11 +64,11 @@ def create_user():
         confirm = request.form['confirm_password']
 
         if password != confirm:
-            flask("Paroolid ei kattu!", "danger")
+            flash("Paroolid ei kattu!", "danger")
             return render_template("create_user.html")
 
         if User.query.filter_by(username=username).first():
-            flask("⚠️ Kasutajanimi on juba olemas!", "warning")
+            flash("⚠️ Kasutajanimi on juba olemas!", "warning")
             return render_template("create_user.html")
 
         hashed_pw = generate_password_hash(password)
@@ -75,7 +76,7 @@ def create_user():
         db.session.add(new_user)
         db.session.commit()
 
-        flask(f"Kasutaja '{username}' loodud!", "success")
+        flash(f"Kasutaja '{username}' loodud!", "success")
         return redirect(url_for('create_user'))
 
     return render_template("create_user.html")
