@@ -111,76 +111,156 @@ def index():
 def check():
     personal_id = request.form.get("personal_id")
     timestamp = datetime.utcnow()
+    result = "Tundmatu viga"
+    can_issue = False
 
     if not personal_id or len(personal_id) < 7:
         return jsonify({"result": "Vigane isikukood", "can_issue_ticket": False})
 
-    # 1. Kontrollime kas isikukood on juba logis (andmed.xlsx)
-    log_path = 'andmed.xlsx'
-    already_logged = False
+    # ✅ Kontrolli, kas juba on väljastatud
+    log_path = "logi.xlsx"
     if os.path.exists(log_path):
         try:
             df_log = pd.read_excel(log_path)
-            if personal_id in df_log['isikukood'].astype(str).values:
-                already_logged = True
+            if not df_log.empty and personal_id in df_log[df_log["tulemus"] == "Tasuta pilet!"]["isikukood"].astype(str).values:
+                return jsonify({"result": "Pilet juba väljastatud!", "can_issue_ticket": False})
         except Exception as e:
-            return jsonify({"result": f"Logi lugemisel viga: {str(e)}", "can_issue_ticket": False})
+            return jsonify({"result": f"Logi lugemise viga: {str(e)}", "can_issue_ticket": False})
 
-    # 2. Kui juba logis, ära väljasta uuesti
-    if already_logged:
-        result = "Pilet on juba väljastatud!"
-        can_issue = False
-    # 3. Kui algab 5/6 ja pole logis – võimalus piletit väljastada
-    elif personal_id.startswith(("5", "6")):
+    # ✅ Kontroll nimekirjas
+    try:
+        andmed_df = pd.read_excel('andmed.xlsx')
+        andmekoodid = andmed_df['isikukood'].astype(str).values
+    except Exception as e:
+        return jsonify({"result": f"Andmete faili lugemine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+
+    if personal_id in andmekoodid:
         result = "Tasuta pilet!"
         can_issue = True
-        # Logi salvestamine
-        try:
-            save_row = {
-                "isikukood": personal_id,
-                "kasutaja": current_user.username,
-                "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                "tulemus": result
-            }
-            if os.path.exists(log_path):
-                df_log = pd.read_excel(log_path)
-                df_log = pd.concat([df_log, pd.DataFrame([save_row])], ignore_index=True)
-            else:
-                df_log = pd.DataFrame([save_row])
-            df_log.to_excel(log_path, index=False)
-        except Exception as e:
-            return jsonify({"result": f"Logi salvestamisel viga: {str(e)}", "can_issue_ticket": False})
 
-    # 4. Kui algab 5/6 aga pole logis ega ole lubatud → lisa puuduja.xlsx
-    elif personal_id.startswith(("5", "6")):
-        result = "Puudub nimekirjas"
-        can_issue = False
-        try:
-            puudu_row = {
-                "isikukood": personal_id,
-                "kasutaja": current_user.username,
-                "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            }
-            missing_path = 'puuduja.xlsx'
-            if os.path.exists(missing_path):
-                df_miss = pd.read_excel(missing_path)
-                df_miss = pd.concat([df_miss, pd.DataFrame([puudu_row])], ignore_index=True)
-            else:
-                df_miss = pd.DataFrame([puudu_row])
-            df_miss.to_excel(missing_path, index=False)
-        except Exception as e:
-            return jsonify({"result": f"Puuduja salvestamisel viga: {str(e)}", "can_issue_ticket": False})
     else:
-        result = "Ei ole elanik."
-        can_issue = False
+        # ✅ Arvuta vanus seisuga 01.08.2025
+        try:
+            yy = int(personal_id[1:3])
+            mm = int(personal_id[3:5])
+            dd = int(personal_id[5:7])
+            century_code = personal_id[0]
 
-    # Salvesta andmebaasi logi
-    log_entry = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
-    db.session.add(log_entry)
+            if century_code in ['1', '2']:
+                year = 1800 + yy
+            elif century_code in ['3', '4']:
+                year = 1900 + yy
+            elif century_code in ['5', '6']:
+                year = 2000 + yy
+            else:
+                return jsonify({"result": "Tundmatu sajandikood", "can_issue_ticket": False})
+
+            birth_date = datetime(year, mm, dd)
+            ref_date = datetime(2025, 8, 1)
+            age = (ref_date - birth_date).days // 365
+
+            if age < 14:
+                result = "Tasuta pilet!"
+                can_issue = True
+            else:
+                result = "Ei ole elanik."
+                can_issue = False
+	
+		if age >= 14 and personal_id not in andmekoodid:
+    		result = "Pilet maksab"
+   		 can_issue = False
+   		 can_buy = True
+return jsonify({
+    "result": result,
+    "can_issue_ticket": can_issue,
+    "can_buy_ticket": can_buy
+})
+
+
+                # ✅ Salvesta puuduja
+                try:
+                    puuduja_path = "puuduja.xlsx"
+                    puudu_row = {
+                        "isikukood": personal_id,
+                        "kasutaja": current_user.username,
+                        "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                        "põhjus": "≥14 ja puudub nimekirjast"
+                    }
+                    if os.path.exists(puuduja_path):
+                        puudu_df = pd.read_excel(puuduja_path)
+                        puudu_df = pd.concat([puudu_df, pd.DataFrame([puudu_row])], ignore_index=True)
+                    else:
+                        puudu_df = pd.DataFrame([puudu_row])
+                    puudu_df.to_excel(puuduja_path, index=False)
+                except Exception as e:
+                    return jsonify({"result": f"Puuduja salvestamisel viga: {str(e)}", "can_issue_ticket": False})
+        except Exception as e:
+            return jsonify({"result": f"Vanuse arvutamine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+
+    # ✅ Salvestame logi
+    try:
+        save_row = {
+            "isikukood": personal_id,
+            "kasutaja": current_user.username,
+            "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            "tulemus": result
+        }
+        if os.path.exists(log_path):
+            df_log = pd.read_excel(log_path)
+            df_log = pd.concat([df_log, pd.DataFrame([save_row])], ignore_index=True)
+        else:
+            df_log = pd.DataFrame([save_row])
+        df_log.to_excel(log_path, index=False)
+    except Exception as e:
+        return jsonify({"result": f"Logi salvestamine ebaõnnestus: {str(e)}", "can_issue_ticket": False})
+
+    # ✅ Andmebaasi logi
+    db_log = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
+    db.session.add(db_log)
     db.session.commit()
 
     return jsonify({"result": result, "can_issue_ticket": can_issue})
 
+# ✔️ Piletite ostmine
+@app.route("/buy_ticket", methods=["POST"])
+@login_required
+def buy_ticket():
+    try:
+        isikukood = request.form.get("personal_id")
+        kogus = int(request.form.get("quantity"))
+        hind = 15 * kogus
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+        ost_row = {
+            "isikukood": isikukood,
+            "kogus": kogus,
+            "hind (€)": hind,
+            "kasutaja": current_user.username,
+            "aeg": timestamp
+        }
+
+        ostud_path = "ostud.xlsx"
+        if os.path.exists(ostud_path):
+            df = pd.read_excel(ostud_path)
+            df = pd.concat([df, pd.DataFrame([ost_row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([ost_row])
+        df.to_excel(ostud_path, index=False)
+
+        return jsonify({"result": f"{kogus} pilet(it) ostetud, hind kokku {hind}€"})
+    except Exception as e:
+        return jsonify({"result": f"Ostu salvestamine ebaõnnestus: {str(e)}"})
+
+
+@app.route('/stats')
+@login_required
+def stats():
+    try:
+        df = pd.read_excel("logi.xlsx")
+        count = df[df["tulemus"] == "Tasuta pilet!"].shape[0]
+        return jsonify({"count": count})
+    except:
+        return jsonify({"count": 0})
 
 @app.route("/debug-users")
 def debug_users():
