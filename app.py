@@ -54,6 +54,16 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        new_password = request.form['new_password']
+        current_user.password = new_password
+        db.session.commit()
+        return redirect(url_for('index'))
+    return render_template("change_password.html")
+
 @app.route('/')
 @login_required
 def index():
