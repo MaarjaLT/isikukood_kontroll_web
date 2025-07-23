@@ -10,6 +10,7 @@
   <div class="container mt-5">
     <h2 class="mb-4">🔐 Admin paneel – Kasutajate haldus</h2>
 
+
     <form method="POST" class="row g-3 mb-4">
       <div class="col-md-5">
         <input type="text" name="username" class="form-control" placeholder="Kasutajanimi" required>
@@ -42,6 +43,7 @@
       </tbody>
     </table>
 
+    <a href="{{ url_for('admin') }}" class="btn btn-dark">Halda kasutajaid</a>
     <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">🔙 Tagasi</a>
     <a href="{{ url_for('logout') }}" class="btn btn-danger mt-3 ms-2">Logi välja</a>
   </div>

@@ -28,9 +28,21 @@
       top: 20px;
       right: 20px;
     }
+    .admin-link {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Admini kasutaja loomise link -->
+  {% if current_user.is_authenticated and current_user.is_admin %}
+  <div class="admin-link">
+    <a href="{{ url_for('create_user') }}" class="btn btn-outline-primary btn-sm">➕ Lisa kasutaja</a>
+  </div>
+  {% endif %}
 
   <!-- Logi välja nupp -->
   <div class="logout-btn">
@@ -46,10 +58,11 @@
       <input type="text" id="personal_id" class="form-control" placeholder="Sisesta isikukood">
     </div>
 
-    <div class="d-grid gap-2">
-      <button class="btn btn-primary" onclick="checkID()">Kontrolli</button>
-      <button class="btn btn-success" id="ticket_btn" onclick="issueTicket()">Väljasta pilet</button>
-    </div>
+<div class="d-grid gap-2">
+  <button class="btn btn-primary" onclick="checkID()">Kontrolli</button>
+  <button class="btn btn-success" id="ticket_btn" style="display:none;" onclick="issueTicket()">Väljasta pilet</button>
+  <button class="btn btn-warning" id="buy_btn" style="display:none;" onclick="buyTicket()">Osta pilet</button>
+</div>
 
     <p class="mt-3 fw-semibold" id="result"></p>
   </div>
@@ -85,8 +98,82 @@
         document.getElementById("result").innerText = data.result;
         document.getElementById("ticket_btn").style.display = "none";
       });
+
+	ticketBtn.style.display = data.result === "Tasuta pilet!" || data.can_issue_ticket ? "block" : "none";
     }
   </script>
+<script>
+fetch("/stats")
+  .then(res => res.json())
+  .then(data => {
+    const el = document.createElement("p");
+    el.className = "mt-3 fw-bold text-primary";
+    el.innerText = `Kokku väljastatud pileteid: ${data.count}`;
+    document.querySelector(".container").appendChild(el);
+  });
+</script>
 
 </body>
+
+<!-- HTML piletite ostuks -->
+<div id="buy_section" class="mt-3 d-none">
+  <input type="number" id="ticket_qty" class="form-control mb-2" placeholder="Piletite arv" value="1" min="1">
+  <button class="btn btn-warning" onclick="buyTicket()">Osta pilet(id)</button>
+</div>
+
+<script>
+function checkID() {
+  const personal_id = document.getElementById("personal_id").value.trim();
+  fetch("/check", {
+    method: "POST",
+    body: new URLSearchParams({ personal_id }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+  })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("result").innerText = data.result;
+
+    const ticketBtn = document.getElementById("ticket_btn");
+    const buySection = document.getElementById("buy_section");
+
+    if (data.can_issue_ticket) {
+      ticketBtn.style.display = "block";
+      buySection.classList.add("d-none");
+    } else if (data.can_buy_ticket) {
+      buySection.classList.remove("d-none");
+      ticketBtn.style.display = "none";
+    } else {
+      ticketBtn.style.display = "none";
+      buySection.classList.add("d-none");
+    } .then(data => {
+  document.getElementById("result").innerText = data.result;
+
+  document.getElementById("ticket_btn").style.display = data.can_issue_ticket ? "block" : "none";
+  document.getElementById("buy_btn").style.display = data.can_sell_ticket ? "block" : "none";
+  });
+}
+
+function buyTicket() {
+  const personal_id = document.getElementById("personal_id").value.trim();
+  const quantity = prompt("Mitu piletit soovid osta?");  // võib asendada inputiga
+
+  if (!quantity || isNaN(quantity) || quantity < 1) {
+    alert("Sisesta korrektne kogus!");
+    return;
+  }
+
+  fetch("/buy_ticket", {
+    method: "POST",
+    body: new URLSearchParams({ personal_id, quantity }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+  })
+  .then(response => response.json())
+  .then(data => {
+    document.getElementById("result").innerText = data.result;
+    document.getElementById("buy_btn").style.display = "none";
+  });
+}
+
+</script>
+
 </html>
