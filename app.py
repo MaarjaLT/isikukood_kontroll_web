@@ -107,6 +107,12 @@ def check():
 
     return jsonify({"result": result})
 
+@app.route("/debug-users")
+def debug_users():
+    users = User.query.all()
+    return "<br>".join([f"{u.username} – {u.password}" for u in users])
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
