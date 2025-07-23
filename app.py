@@ -228,6 +228,35 @@ def sell_ticket():
 
     return jsonify({"result": f"{quantity} pilet(it) müüdud, kokku {total_price} €"})
 
+# ✔️ Pileti ostmine
+@app.route('/buy_ticket', methods=['POST'])
+@login_required
+def buy_ticket():
+    personal_id = request.form.get("personal_id")
+    quantity = int(request.form.get("quantity", 1))
+    timestamp = datetime.utcnow()
+
+    row = {
+        "isikukood": personal_id,
+        "kogus": quantity,
+        "hind_kokku": quantity * 15,
+        "kasutaja": current_user.username,
+        "aeg": timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    path = 'müük.xlsx'
+    try:
+        if os.path.exists(path):
+            df = pd.read_excel(path)
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([row])
+        df.to_excel(path, index=False)
+    except Exception as e:
+        return jsonify({"result": f"Salvestamisel viga: {str(e)}"})
+
+    return jsonify({"result": f"{quantity} pilet(it) ostetud!"})
+
 # ✔️ Debugimine
 @app.route("/debug-users")
 def debug_users():
