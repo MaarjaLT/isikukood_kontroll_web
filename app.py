@@ -111,18 +111,22 @@ def check():
 
     if not personal_id or len(personal_id) < 7:
         result = "Vigane isikukood"
+        can_issue = False
     elif personal_id.startswith("6") or personal_id.startswith("5"):
         result = "Tasuta pilet!"
+        can_issue = True
     elif personal_id in df['isikukood'].astype(str).values:
         result = "Tasuta pilet!"
+        can_issue = True
     else:
         result = "Ei ole elanik."
+        can_issue = False
 
     log = QueryLog(personal_id=personal_id, result=result, user_id=current_user.id)
     db.session.add(log)
     db.session.commit()
 
-    return jsonify({"result": result})
+    return jsonify({"result": result, "can_issue_ticket": can_issue})
 
 @app.route("/debug-users")
 def debug_users():
