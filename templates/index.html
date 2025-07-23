@@ -38,11 +38,13 @@
 </head>
 <body>
 
-  {% if current_user.is_authenticated and current_user.is_admin %}
-  <div class="admin-link">
+{% if current_user.is_authenticated and current_user.is_admin %}
+  <div class="admin-link d-flex gap-2">
     <a href="{{ url_for('create_user') }}" class="btn btn-outline-primary btn-sm">➕ Lisa kasutaja</a>
+    <a href="{{ url_for('admin') }}" class="btn btn-outline-dark btn-sm">⚙️ Halda kasutajaid</a>
   </div>
-  {% endif %}
+{% endif %}
+
 
   <div class="logout-btn">
     <form action="/logout" method="get">

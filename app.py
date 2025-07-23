@@ -68,7 +68,6 @@ def logout():
 def create_user():
     if not current_user.is_admin:
         return "Ligipääs keelatud", 403
-    return render_template("admin.html")
 
     if request.method == 'POST':
         username = request.form['username']
@@ -89,9 +88,34 @@ def create_user():
         db.session.commit()
 
         flash(f"Kasutaja '{username}' loodud!", "success")
-        return redirect(url_for('create_user'))
+        return redirect(url_for('admin'))
 
     return render_template("create_user.html")
+
+
+# Kasutaja loomine
+@app.route('/admin')
+@login_required
+def admin():
+    if not current_user.is_admin:
+        return "Ligipääs keelatud", 403
+    users = User.query.all()
+    return render_template("admin.html", users=users)
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        return "Ligipääs keelatud", 403
+
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        return "Ei saa ennast kustutada", 400
+
+    db.session.delete(user)
+    db.session.commit()
+    return redirect(url_for('admin'))
+
 
 # ✔️ Parooli muutmine
 @app.route('/change_password', methods=['GET', 'POST'])

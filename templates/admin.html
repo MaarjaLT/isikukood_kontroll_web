@@ -2,50 +2,46 @@
 <html lang="et">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin - Kasutajate haldus</title>
+  <title>Kasutajate haldus</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
-<body>
-  <div class="container mt-5">
-    <h2 class="mb-4">🔐 Admin paneel – Kasutajate haldus</h2>
+<body class="bg-light">
 
+<div class="container mt-5">
+  <h2 class="mb-4">👤 Kasutajate haldus</h2>
 
-    <form method="POST" class="row g-3 mb-4">
-      <div class="col-md-5">
-        <input type="text" name="username" class="form-control" placeholder="Kasutajanimi" required>
-      </div>
-      <div class="col-md-5">
-        <input type="password" name="password" class="form-control" placeholder="Parool" required>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button type="submit" class="btn btn-success">➕ Lisa kasutaja</button>
-      </div>
-    </form>
+  <table class="table table-bordered bg-white">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Kasutajanimi</th>
+        <th>Admin</th>
+        <th>Tegevus</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.id }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ "Jah" if user.is_admin else "Ei" }}</td>
+        <td>
+          {% if user.id != current_user.id %}
+          <form action="{{ url_for('delete_user', user_id=user.id) }}" method="post" onsubmit="return confirm('Kustuta kasutaja?')">
+            <button class="btn btn-sm btn-danger">Kustuta</button>
+          </form>
+          {% else %}
+          <span class="text-muted">Aktiivne</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-    <h4>Kõik kasutajad</h4>
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Kasutajanimi</th>
-          <th>Roll</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for user in users %}
-        <tr>
-          <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
-          <td>{{ "Admin" if user.is_admin else "Tavaline" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <a href="{{ url_for('create_user') }}" class="btn btn-primary">➕ Lisa uus kasutaja</a>
+  <a href="{{ url_for('index') }}" class="btn btn-secondary">⬅️ Avalehele</a>
+</div>
 
-    <a href="{{ url_for('admin') }}" class="btn btn-dark">Halda kasutajaid</a>
-    <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">🔙 Tagasi</a>
-    <a href="{{ url_for('logout') }}" class="btn btn-danger mt-3 ms-2">Logi välja</a>
-  </div>
 </body>
 </html>
