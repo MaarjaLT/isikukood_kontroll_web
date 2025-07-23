@@ -75,7 +75,7 @@ def create_user():
         db.session.add(new_user)
         db.session.commit()
 
-        flash(f"Kasutaja '{username}' loodud!", "success")
+        flask(f"Kasutaja '{username}' loodud!", "success")
         return redirect(url_for('create_user'))
 
     return render_template("create_user.html")
