@@ -24,6 +24,8 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False) 
+
 
 class QueryLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +55,27 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/admin/create_user', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    if not current_user.is_admin:
+        return "Ligipääs keelatud", 403
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        if User.query.filter_by(username=username).first():
+            return render_template("create_user.html", error="Kasutajanimi on juba võetud.")
+
+        new_user = User(username=username, password=password)
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('index'))
+
+    return render_template("create_user.html")
+
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required

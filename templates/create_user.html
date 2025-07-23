@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8">
+  <title>Loo uus kasutaja</title>
+</head>
+<body>
+  <h2>Loo uus kasutaja</h2>
+  <form method="post">
+    <input type="text" name="username" placeholder="Kasutajanimi" required>
+    <input type="password" name="password" placeholder="Parool" required>
+    <button type="submit">Loo</button>
+    {% if error %}
+      <p style="color:red">{{ error }}</p>
+    {% endif %}
+  </form>
+</body>
+</html>
