@@ -1,17 +1,22 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, QueryLog
 from datetime import datetime
+import pandas as pd  # ← lisa see
 import os
-from flask import flash
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'devkey')
+
+# Laeme Exceli tabeli siia
+df = pd.read_excel("andmed.xlsx")  # ← lisa siia
+
+# Andmebaas jne...
 
 # ✔️ Andmebaas
 database_url = os.getenv('DATABASE_URL')
